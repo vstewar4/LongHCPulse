@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import sys
 from scipy.interpolate import interp1d
+from scipy.interpolate import CubicSpline
 import copy
 import pickle
 cc = matplotlib.colors.ColorConverter()
@@ -29,7 +30,7 @@ class LongHCPulse:
 
 
 	def _importPickle(self, **entries):
-		'''must be saved with savefile function'''
+		'''file must have been saved with savefile function'''
 		self.__dict__.update(entries)
 
 
@@ -61,7 +62,7 @@ class LongHCPulse:
 		self.AddendaHC = np.zeros((2,numcurves))	# Subtracted from HC at the very end.
 		
 		self.ThermCondWire = np.zeros((2,numcurves))	# Used to compare 
-		#self.ThermCondWire = []
+		##self.ThermCondWire = []
 
 		# Import data
 		for line in open(rawfile):
@@ -153,8 +154,13 @@ class LongHCPulse:
 		self.sampmass = sampmass
 		self.molarmass = molarmass
 
+		# Set all "zero-field values" to zero
+		self.Bfield[np.where(np.around(self.Bfield,0) == 0)] = 0
+		# Round all Bfield values to nearest 10 Oe
+		self.Bfield = np.around(self.Bfield,-1)
+
 		# Scale short pulse by user-provided factor (depends on how the measurement
-		# was taken. Typically the default units are ).
+		# was taken).
 		self.ShortPulse *=scaleshortpulse
 		self.shortPulseAverage()
 
@@ -313,7 +319,7 @@ class LongHCPulse:
 			self.avgSpB = [[]]
 			self.ScaledavgSpB = [[]]
 			return 0
-		Bprev = round(self.Bfield[firstnonzero],-1)
+		Bprev = self.Bfield[firstnonzero]
 		avgSpB = [Bprev]
 		Tprev = round(self.Tsamp[firstnonzero],3)
 		Tavg = [self.Tsamp[firstnonzero]]
@@ -321,7 +327,7 @@ class LongHCPulse:
 		KWavg = [self.ThermCondWire[1,firstnonzero]]
 		for i, sp in enumerate(self.ShortPulse):
 			if sp != 0:
-				if Bprev != round(self.Bfield[i],0):
+				if self.Bfield[i] not in avgSpB:
 					avgSpHc[Bindex].append(np.mean(Cavg))
 					avgSpT[Bindex].append(np.mean(Tavg))
 					avgTCW.append([np.mean(Tavg), np.mean(KWavg), np.std(KWavg), len(Tavg)])
@@ -330,10 +336,10 @@ class LongHCPulse:
 					KWavg = [self.ThermCondWire[1,i]]
 					# start new data set
 					Tprev = np.mean(Tavg)
-					avgSpB.append(round(self.Bfield[i],1))
+					avgSpB.append(self.Bfield[i])
 					avgSpHc.append([])
 					avgSpT.append([])
-					Bindex += 1
+					Bindex = np.where(avgSpB == self.Bfield[i])[0][0]
 				else:
 					if np.abs((self.Tsamp[i] - Tprev)/Tprev) < threshold:
 						Tavg.append(self.Tsamp[i])
@@ -347,7 +353,7 @@ class LongHCPulse:
 						Cavg = [sp]
 						KWavg = [self.ThermCondWire[1,i]]
 						Tprev = np.mean(Tavg)
-				Bprev = round(self.Bfield[i],1)
+				#Bprev = self.Bfield[i]
 				#Tprev = round(self.Tsamp[i],3)
 		avgSpHc[Bindex].append(np.mean(Cavg))
 		avgSpT[Bindex].append(np.mean(Tavg))
@@ -408,13 +414,13 @@ class LongHCPulse:
 		# Combine close repeated values in thermometer resistance
 		self.AvgThRes = {fn: [[],[]] for fn in FieldNames}
 		AvgThTemp = {fn: [[],[]] for fn in FieldNames}
-		threshold = 0.003 #(K)
+		threshold = 0.005 #(K)
 		for f in FieldNames:
 			Tavg = []
 			Ravg = []
 			Tprev = ThRes[f][0,0]
 			for i, Tem in enumerate(ThRes[f][0]):
-				if np.abs(Tem-Tprev) <= threshold:
+				if (np.abs(Tem-Tprev) <= threshold) | (np.abs(Tem-Tprev)/Tem <= threshold):
 					Tavg.append(Tem)
 					Ravg.append(ThRes[f][1,i])
 				else:
@@ -424,6 +430,30 @@ class LongHCPulse:
 					Ravg = [ThRes[f][1,i]]
 				Tprev = Tem
 
+			# Add a few extra points at the end so the cubic spline doesn't get messed up
+			# atr = self.AvgThRes[f]
+			# beginslope = (atr[1][0] - atr[1][1])/\
+			# 			(atr[0][0] - atr[0][1])
+			# xbeg1 = atr[0][0] - (atr[0][1] - atr[0][0])
+			# xbeg2 = (atr[0][0] + xbeg1)/2.
+			# xbeg3 = (xbeg1 + xbeg2)/2.
+			# xbeg4 = (xbeg1 + xbeg3)/2.
+			# for x in [xbeg2, xbeg3, xbeg4, xbeg1]:
+			# 	ynew = beginslope*(x-atr[0][0]) + atr[1][0]
+			# 	self.AvgThRes[f][0].insert(0,x)
+			# 	self.AvgThRes[f][1].insert(0,ynew)	
+
+			# endslope = (atr[1][-1] - atr[1][-2])/\
+			# 			(atr[0][-1] - atr[0][-2])
+			# xend1 = atr[0][-1] + (atr[0][-1] - atr[0][-2])
+			# xend2 = (atr[0][-1] + xend1)/2.
+			# xend3 = (xend2 + xend1)/2.
+			# xend4 = (xend2 + xend3)/2.
+			# for x in [xend4, xend2, xend3, xend1]:
+			# 	ynew = endslope*(x-atr[0][-1]) + atr[1][-1]
+			# 	self.AvgThRes[f][0].append(x)
+			# 	self.AvgThRes[f][1].append(ynew)
+
 		# Prepare functions for interpolation
 		self.ResTempFunc = {}
 		for f in FieldNames:
@@ -431,7 +461,15 @@ class LongHCPulse:
 			# Smooth data (unhelpful)
 			#self.AvgThRes[f][0] = self._movingaverage( self.AvgThRes[f][0], 3)
 			AvgThTemp[f] = self.AvgThRes[f][:,self.AvgThRes[f][1].argsort()]  # Used for "_resisToTemp"
-			self.ResTempFunc[f] = interp1d(AvgThTemp[f][1], AvgThTemp[f][0], kind='cubic')
+			# self.ResTempFunc[f] = interp1d(AvgThTemp[f][1], AvgThTemp[f][0], kind='cubic',
+			# 	bounds_error = False)
+			self.ResTempFunc[f] = CubicSpline(AvgThTemp[f][1], AvgThTemp[f][0], 
+				bc_type = 'natural',extrapolate=True)
+
+		# plt.figure()
+		# plt.plot(AvgThTemp[FieldNames[0]][1], 1/AvgThTemp[FieldNames[0]][0], '.')
+		# xdat = np.linspace(AvgThTemp[FieldNames[0]][1][0],AvgThTemp[FieldNames[0]][1][-1], 1000)
+		# plt.plot(xdat, 1/self.ResTempFunc[FieldNames[0]](xdat))
 
 	def _recordCalData(self,datalines,start):
 		"""Used with the importCalibration function"""
@@ -562,16 +600,18 @@ class LongHCPulse:
 		return np.interp(temp, self.AddendaHC[0], self.AddendaHC[1])
 
 
-	def _combineTraces(self,smooth):
+	def _combineTraces(self,smooth, FieldBinSize):
 		"""Combines all heat capacity traces into a single line.
-		Used for lineplotCombine and Entropy calculations"""
-		Barray = np.sort(list(set(np.around(self.Bfield,-1))))
+		Used for lineplotCombine and Entropy calculations.
+		FieldBinSize in in Oe"""
+
+		Barray = np.sort(list(set(self.Bfield)))
 		self.CombB = Barray
 		ScaledBarray = np.zeros(len(Barray))
 		for ii in xrange(len(Barray)):
-			B = round(Barray[ii],1)
-			Bindex = np.where(np.around(self.Bfield,-1)==B)[0][0]
-			ScaledBarray[ii] = np.around(self.ScaledBfield[Bindex],1)
+			B = Barray[ii]
+			Bindex = np.where(self.Bfield==B)[0][0]
+			ScaledBarray[ii] = self.ScaledBfield[Bindex]
 		#ScaledBarray = np.sort(list(set(np.around(self.ScaledBfield,1))))
 		self.ScaledCombB = ScaledBarray
 		if len(ScaledBarray) != len(Barray):
@@ -584,10 +624,10 @@ class LongHCPulse:
 		LongPindices = np.where(self.ShortPulse==0)[0]
 		# loop through fields and combine traces
 		for jj in xrange(len(Barray)):
-			B = round(Barray[jj],-1)
+			B = Barray[jj]
 
 			# find all indices where the magnetic field is of the specified value
-			Bindices = np.where(np.around(self.Bfield,-1)==B)[0]
+			Bindices = np.where(np.abs(self.Bfield - B)<FieldBinSize)[0]
 			# Take intersection of long pulses and field to eliminate short pulse data
 			Bindices = np.intersect1d(Bindices, LongPindices)
 			if len(Bindices) == 0:		
@@ -656,7 +696,10 @@ class LongHCPulse:
 		ShortHC = self.ShortPulse[index]
 		if ShortHC == 0:
 			if heatingcolor is not None:
-				axes.plot(self.T[index][:,0], self.HC[index][:,0],color=heatingcolor, **kwargs)
+				if 'color' in kwargs:
+					axes.plot(self.T[index][:,0], self.HC[index][:,0],**kwargs)
+				else:
+					axes.plot(self.T[index][:,0], self.HC[index][:,0],color=heatingcolor, **kwargs)
 				if PlotUncertainty == True:
 					axes.fill_between(self.T[index][:,0], 
 						self.HC[index][:,0]+ self.HC_uncertainty[index][:,0],
@@ -664,7 +707,10 @@ class LongHCPulse:
 						facecolor=[(2*i+0.5)/3. for i in cc.to_rgba(heatingcolor, alpha=0.5)], 
 						edgecolor='none', interpolate=True)
 			if coolingcolor is not None:
-				axes.plot(self.T[index][:,1], self.HC[index][:,1],color=coolingcolor, **kwargs)
+				if 'color' in kwargs:
+					axes.plot(self.T[index][:,1], self.HC[index][:,1], **kwargs)
+				else:
+					axes.plot(self.T[index][:,1], self.HC[index][:,1],color=coolingcolor, **kwargs)
 				if PlotUncertainty == True:
 					axes.fill_between(self.T[index][:,1], 
 						self.HC[index][:,1]+ self.HC_uncertainty[index][:,1],
@@ -694,9 +740,9 @@ class LongHCPulse:
 
 		if Blabels == True:
 			if demag == True:
-				Bvalue = round(self.ScaledBfield[index],-1)
+				Bvalue = self.ScaledBfield[index]
 			else:
-				Bvalue = round(self.Bfield[index],-1)
+				Bvalue = self.Bfield[index]
 			if len(self.labels) == 0: self.Bflag = [] # This means labels has been reset
 			if Bvalue not in self.Bflag:
 				# Right now, it uses the cooling curve color for the label.
@@ -749,7 +795,10 @@ class LongHCPulse:
 		ShortHC = self.ShortPulse[index]
 		if ShortHC == 0:
 			if heatingcolor is not None:
-				axes.plot(self.T[index][:,0], self.HC[index][:,0]/self.T[index][:,0],color=heatingcolor, **kwargs)
+				if 'color' in kwargs:
+					axes.plot(self.T[index][:,0], self.HC[index][:,0]/self.T[index][:,0], **kwargs)
+				else:
+					axes.plot(self.T[index][:,0], self.HC[index][:,0]/self.T[index][:,0],color=heatingcolor, **kwargs)
 				if PlotUncertainty == True:
 					axes.fill_between(self.T[index][:,0], 
 						(self.HC[index][:,0]+ self.HC_uncertainty[index][:,0])/self.T[index][:,0],
@@ -757,7 +806,10 @@ class LongHCPulse:
 						facecolor=[(2*i+0.5)/3. for i in cc.to_rgba(heatingcolor, alpha=0.5)], 
 						edgecolor='none', interpolate=True)
 			if coolingcolor is not None:
-				axes.plot(self.T[index][:,1], self.HC[index][:,1]/self.T[index][:,1],color=coolingcolor, **kwargs)
+				if 'color' in kwargs:
+					axes.plot(self.T[index][:,1], self.HC[index][:,1]/self.T[index][:,1], **kwargs)
+				else:
+					axes.plot(self.T[index][:,1], self.HC[index][:,1]/self.T[index][:,1],color=coolingcolor, **kwargs)
 				if PlotUncertainty == True:
 					axes.fill_between(self.T[index][:,1], 
 						(self.HC[index][:,1]+ self.HC_uncertainty[index][:,1])/self.T[index][:,1],
@@ -787,9 +839,9 @@ class LongHCPulse:
 
 		if Blabels == True:
 			if demag == True:
-				Bvalue = round(self.ScaledBfield[index],-1)
+				Bvalue = self.ScaledBfield[index]
 			else:
-				Bvalue = round(self.Bfield[index],-1)
+				Bvalue = self.Bfield[index]
 			if len(self.labels) == 0: self.Bflag = [] # This means labels has been reset
 			if Bvalue not in self.Bflag:
 				# Right now, it uses the cooling curve color for the label.
@@ -838,17 +890,18 @@ class LongHCPulse:
 		""" Plots all the traces of long-pulse heat capacity and points of short-pulse
 		Currently uses 'gist_rainbow' colormap. If you don't like it, change it."""
 		if (Barray == 'All' or Barray == 'all'):
-			Barray = np.sort(list(set(np.around(self.Bfield,-1))))
+			Barray = np.sort(list(set(self.Bfield)))
 		else:
 			Barray = np.array(Barray)
 
 		# determine the color map
 		#colormap = plt.cm.hsv((Barray*1.0)/Barray[-1]) * 0.6   #based on field
+
 		colormap = plt.cm.hsv(np.arange(len(Barray))*1.0/len(Barray))* 0.75   #based on index
 		colors = dict(zip(Barray, colormap))
 
 		for jj in xrange(len(self.Bfield)):
-			B = round(self.Bfield[jj],-1)
+			B = self.Bfield[jj]
 			for b in Barray:
 				if  B == b:
 					self.plotHC(axes=axes,index=jj,coolingcolor=colors[B],Blabels=True, **kwargs)
@@ -857,7 +910,7 @@ class LongHCPulse:
 		if np.count_nonzero(self.ShortPulse) == 0: return
 		for jj, b in enumerate(Barray):
 			for i in xrange(len(self.avgSpB)):
-				spB = round(self.avgSpB[i],-1)
+				spB = self.avgSpB[i]
 				if spB == b:
 					axes.plot(self.avgSpT[i], self.avgSpHc[i],color=colors[spB], 
 						marker=markers[i%len(markers)],
@@ -865,8 +918,8 @@ class LongHCPulse:
 						label='Adiabatic Pulses', linestyle="None")
 					try: 
 						if demag == True:
-							labl = str(abs(self.ScaledavgSpB[i])/10000)+' T'
-						else: labl = str(round(self.avgSpB[i],1)/10000)+' T'
+							labl = str(abs(self.ScaledavgSpB[i])/10000.)+' T'
+						else: labl = str(round(self.avgSpB[i],1)/10000.)+' T'
 					except NameError: labl = str(round(self.avgSpB[i],1)/10000)+' T'
 					self.shortpulselabels.append(mlines.Line2D([], [], color=colors[spB], 
 							marker=markers[i%len(markers)], linestyle="None", markeredgecolor=colors[spB], 
@@ -874,13 +927,13 @@ class LongHCPulse:
 
 
 	def lineplotCombine(self,axes,Barray,smooth, demag=True, plotShortPulse=True, 
-		markers = ['s','^','o','x'], **kwargs):
+		markers = ['s','^','o','x'], FieldBinSize = 10, **kwargs):
 		"""Combines all the heat capacity traces in a given field so that 
 		there is only one line plotted"""
 		self.labels = []
 
 		if Barray in ['All', 'all']:
-			Barray = np.sort(list(set(np.around(self.Bfield,-1))))
+			Barray = np.sort(list(set(self.Bfield)))
 		else:
 			Barray = np.array(Barray)
 
@@ -893,15 +946,15 @@ class LongHCPulse:
 			self.CombHC
 		except AttributeError:
 			print " combining traces..."
-			self._combineTraces(smooth)
+			self._combineTraces(smooth, FieldBinSize)
 
 		# plot the long pulse data
 		for jj in xrange(len(Barray)):
-			B = round(Barray[jj],-1)
+			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
 			try:
-				Bindex = np.where(np.around(self.CombB,1)==B)[0][0]
+				Bindex = np.where(self.CombB==B)[0][0]
 			except IndexError:
 				continue
 			# Plot
@@ -910,7 +963,7 @@ class LongHCPulse:
 				if fieldval == 0: fieldval = 0.0
 				labl = str(fieldval)+' T'
 			else:
-				labl = str(round(Barray[jj],1)/10000)+' T'
+				labl = str(Barray[jj]/10000.)+' T'
 
 			if ('color' in kwargs) or ('c' in kwargs) :
 				axes.plot(self.CombT[Bindex], self.CombHC[Bindex], **kwargs)
@@ -924,7 +977,7 @@ class LongHCPulse:
 			edgewidth = 0.8
 			for jj, b in enumerate(Barray):
 				for i in xrange(len(self.avgSpB)):
-					spB = round(self.avgSpB[i],0)
+					spB = self.avgSpB[i]
 					if spB == b:
 						axes.plot(self.avgSpT[i], self.avgSpHc[i],color=colors[spB], 
 							marker=markers[i%len(markers)], markeredgewidth = edgewidth,
@@ -941,7 +994,7 @@ class LongHCPulse:
 
 	def _computeEntropy(self,smooth):
 		'''computes entropy for all field values'''
-		Barray = np.sort(list(set(np.around(self.Bfield,0))))
+		Barray = np.sort(list(set(self.Bfield)))
 
 		#Combine traces into single line (if not done already)
 		try:
@@ -953,11 +1006,11 @@ class LongHCPulse:
 		self.Entropy = np.zeros_like(self.CombT)
 		# loop through magnetic fields
 		for jj in xrange(len(Barray)):
-			B = round(Barray[jj],0)
+			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
 			try:
-				Bindex = np.where(np.around(self.CombB,-1)==B)[0][0]
+				Bindex = np.where(self.CombB==B)[0][0]
 			except IndexError:		
 				continue	# Skip if no data exists for this field
 
@@ -981,7 +1034,7 @@ class LongHCPulse:
 		"""Plots entropy vs. T for various magnetic fields"""
 		self.entropylabels = []
 		if (Barray == 'All' or Barray == 'all'):
-			Barray = np.sort(list(set(np.around(self.Bfield,0))))
+			Barray = np.sort(list(set(self.Bfield)))
 		else:
 			Barray = np.array(Barray)
 
@@ -998,11 +1051,11 @@ class LongHCPulse:
 
 		# loop through magnetic fields
 		for jj in xrange(len(Barray)):
-			B = round(Barray[jj],0)
+			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
 			try:
-				Bindex = np.where(np.around(self.CombB,-1)==B)[0][0]
+				Bindex = np.where(self.CombB==B)[0][0]
 			except IndexError:		
 				continue	# Skip if no data exists for this field
 
@@ -1021,23 +1074,24 @@ class LongHCPulse:
 		Set Barray to 'all' if you want to plot all the fields."""
 
 		if (Barray == 'All' or Barray == 'all'):
-			Barray = np.sort(list(set(np.around(self.Bfield,1))))
+			Barray = np.sort(list(set(self.Bfield)))
 			# Create array of scaledB:
 			ScaledBarray = np.zeros(len(Barray))
 			for ii in xrange(len(Barray)):
-				B = round(Barray[ii],1)
-				Bindex = np.where(np.around(self.Bfield,-1)==B)[0][0]
+				B = Barray[ii]
+				Bindex = np.where(self.Bfield==B)[0][0]
 				ScaledBarray[ii] = np.around(self.ScaledBfield[Bindex],1)
 
 
 		Intensity = np.empty((len(Tarray)-1,len(Barray)))*np.nan
 		for ii in xrange(len(Barray)):
-			B = round(Barray[ii],1)
+			B = Barray[ii]
 			# find all indices where the magnetic field is of the specified value
-			Bindices = np.where(np.around(self.Bfield,-1)==B)[0]
+			Bindices = np.where(self.Bfield==B)[0]
 			if len(Bindices) == 0:		
 				continue	# Skip if no data exists for this field
 			# Concatenate data into single array
+
 			binnedhc = self.binAndInterpolate(Tarray, self.T[Bindices[0]][:,1], self.HC[Bindices[0]][:,1])
 
 			for bb in Bindices:
@@ -1072,17 +1126,23 @@ class LongHCPulse:
 
 		# check that values in x_old fall into the range of edges
 		# discard any that are outside the range
-		if x_old[0] > x_old[-1]:
+		if x_old[0] > x_old[-1]:  # reverse order so that low temperature comes first
 			x_old = x_old[::-1]
 			y_old = y_old[::-1]
-		if x_old[-1] > edges[-1]:
+		if x_old[-1] > edges[-1]:  # check if x_old goes higher than edges
 			high_idx = np.nonzero(x_old > edges[-1])[0][0]
 			x_old = x_old[:high_idx]
 			y_old = y_old[0:high_idx]
+			if len(x_old) == 0:    # return a masked array if no data falls in range
+				y_new = np.zeros(np.size(x_new)-1)
+				return np.ma.masked_where(y_new==0 , y_new)
 		if x_old[0] < edges[0]:
 			low_idx = np.nonzero(x_old <= edges[0])[0][-1]
 			x_old = x_old[low_idx:]
 			y_old = y_old[low_idx:]
+			if len(x_old) == 0:
+				y_new = np.zeros(np.size(x_new)-1)
+				return np.ma.masked_where(y_new==0 , y_new)
 
 		bin_idx = np.digitize(x_old,edges)
 		bin_count, b = np.histogram(x_old, edges)
@@ -1228,7 +1288,7 @@ class LongHCPulse:
 		np.savetxt(outfile+'_raw-pulse.txt',rawarray.T, fmt='%.6f', header = 'time(s)\tTemp(K)', 
 			delimiter=', ')
 
-	def saveData(self, outfile): #INCOMPLETE
+	def saveData(self, outfile):
 		#Combine traces into single line (if not done already)
 		try:
 			self.CombHC
