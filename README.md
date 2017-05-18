@@ -1,4 +1,6 @@
 # LongHCPulse
+## V. 1.1
+
 Code for processing long pulse heat capacity data taken on a Quantum Design PPMS
 Please cite ___________
 
