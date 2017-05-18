@@ -7,6 +7,7 @@ This is the file you should import into your python scripts.
 
 YbTiO_HeatCapacity.ipynb is an ipython notebook that gives an example of LongHCPulse being used to process heat capacity data
 in https://arxiv.org/pdf/1703.06904.pdf.
+
 "DRPuck27.cal", "Yb2Ti2O7_longpulse.raw", and "YbTiO_MvsB_100mK.txt" are all data files used in YbtiO_HeatCapacity.ipynb.
 
 A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
