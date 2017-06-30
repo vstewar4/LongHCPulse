@@ -19,6 +19,10 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
+		print('**************** LongHCPulse v 1.2 ******************\n'+\
+			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
+			'******************************************************')
+
 		if ((calfile == None and sampmass == None) and datafile.endswith('.pickle')):
 			with open(datafile, 'rb') as pf:
 				pickdict = pickle.load(pf)
@@ -750,7 +754,7 @@ class LongHCPulse:
 				labl = str(abs(Bvalue)/10000)+' T'
 				#Blab = mlines.Line2D([], [], color=coolingcolor, label=labl)
 
-				self.Bflag.append(Bvalue)
+				self.Bflag.append(round(Bvalue,0))
 
 				if (coolingcolor is not None) and (heatingcolor is not None):
 					self.labels.append(mlines.Line2D([], [], color=coolingcolor, 
@@ -773,7 +777,7 @@ class LongHCPulse:
 
 			if (Bvalue not in self.shortpulseBflag and ShortHC != 0):
 				labl = str(Bvalue/10000)+' T'
-				self.shortpulseBflag.append(Bvalue)
+				self.shortpulseBflag.append(round(Bvalue,0))
 
 				if shortpulsecolor is not None:
 					self.shortpulselabels.append(mlines.Line2D([], [], color=shortpulsecolor, 
@@ -849,7 +853,7 @@ class LongHCPulse:
 				labl = str(abs(Bvalue)/10000)+' T'
 				#Blab = mlines.Line2D([], [], color=coolingcolor, label=labl)
 
-				self.Bflag.append(Bvalue)
+				self.Bflag.append(round(Bvalue,2))
 
 				if (coolingcolor is not None) and (heatingcolor is not None):
 					self.labels.append(mlines.Line2D([], [], color=coolingcolor, 
@@ -872,7 +876,7 @@ class LongHCPulse:
 
 			if (Bvalue not in self.shortpulseBflag and ShortHC != 0):
 				labl = str(Bvalue/10000)+' T'
-				self.shortpulseBflag.append(Bvalue)
+				self.shortpulseBflag.append(round(Bvalue,0))
 
 				if shortpulsecolor is not None:
 					self.shortpulselabels.append(mlines.Line2D([], [], color=shortpulsecolor, 
@@ -889,6 +893,8 @@ class LongHCPulse:
 	def lineplot(self,axes,Barray, markers = ['s','^','o','x'], **kwargs):
 		""" Plots all the traces of long-pulse heat capacity and points of short-pulse
 		Currently uses 'gist_rainbow' colormap. If you don't like it, change it."""
+		self.labels = []
+		self.shortpulselabels = []
 		if (Barray == 'All' or Barray == 'all'):
 			Barray = np.sort(list(set(self.Bfield)))
 		else:
@@ -931,6 +937,7 @@ class LongHCPulse:
 		"""Combines all the heat capacity traces in a given field so that 
 		there is only one line plotted"""
 		self.labels = []
+		self.shortpulselabels = []
 
 		if Barray in ['All', 'all']:
 			Barray = np.sort(list(set(self.Bfield)))
