@@ -19,3 +19,4 @@ A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 ### Updates in version 1.2 (June 30, 2017): 
 - Updated LongHCPulse.py to be compatible with Python 3.6 as well as Python 2.7
 - Fixed bug so that code runs properly on Windows
+- Added minimal working example that includes an explanation of the plotting functions
