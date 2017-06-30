@@ -38,7 +38,7 @@ class LongHCPulse:
 	def _importData(self,rawfile,calfile,sampmass,molarmass,scaleshortpulse, 
 					AdiabaticCriterion):
 		# Import thermal conductivity and thermometer resistivity values from calibration file
-		print " - Importing data..."
+		print(" - Importing data...")
 		self.importCalibration(calfile)
 
 		# Get the number of points per heating/cooling curve, and the number of curves in the file
@@ -68,7 +68,7 @@ class LongHCPulse:
 		for line in open(rawfile):
 
 			if DataLines==True:
-				d = line[:-2].split(",")
+				d = line.strip('\n').split(",")
 				if d[1] == '':  #only accept lines for which there are no comments
 					if d[4] == '0':		
 						kk = 1 # If heater power is zero, it's a cooling curve.
@@ -94,41 +94,41 @@ class LongHCPulse:
 			# find the information needed to compute heat capacity
 			if DataLines==False:
 				if "SystemTemp=" in line:
-					self.Tb[j] = float(line.split(',')[1][11:-2])
+					self.Tb[j] = float(line.strip('\n').split(',')[1][11:])
 					# Note that the log files typically show this to be constant over each pulse
 				#if "StableStartTemperature=" in line:
 				#	self.Tb[j] = float(line.split(',')[1][len("StableStartTemperature="):-2])
 
 
 				if "TempMinMidMax=" in line:
-					self.Tstart[j] = float(line.split(',')[1][len("TempMinMidMax="):-2].split('|')[0])
+					self.Tstart[j] = float(line.strip('\n').split(',')[1][len("TempMinMidMax="):].split('|')[0])
 
 
 				if "Field=" in line:
-					self.Bfield[j] = round(float(line.split(',')[1][6:-2]),0)
+					self.Bfield[j] = round(float(line.strip('\n').split(',')[1][6:]),0)
 
 				if "SampHC=" in line:
-					SampHC = float(line.split(',')[1][7:-2])
+					SampHC = float(line.strip('\n').split(',')[1][7:])
 
 				# determine if it's long pulse or short pulse
 				if "SampleTemp=" in line:
-					self.Tsamp[j] = float(line.split(',')[1][11:-2])
+					self.Tsamp[j] = float(line.strip('\n').split(',')[1][11:])
 				if "TempRise=" in line:
-					TempRise = float(line.split(',')[1][9:-2])
+					TempRise = float(line.strip('\n').split(',')[1][9:])
 					Tratio = TempRise / self.Tsamp[j]
 				# CRITERION FOR ADIABATIC PULSE: Trise/Tsamp < AdiabaticCriterion
 				# If this is true, then save the sample heat capacity. If not, value = 0
 				if ("SampHC=" in line and Tratio < AdiabaticCriterion):
-					self.ShortPulse[j] = float(line.split(',')[1][7:-2])
+					self.ShortPulse[j] = float(line.strip('\n').split(',')[1][7:])
 
 				if "AddendaHC=" in line:
-					self.AddendaHC[1,j] = float(line.split(',')[1][10:-2])	# microJ/K
+					self.AddendaHC[1,j] = float(line.strip('\n').split(',')[1][10:])	# microJ/K
 					self.AddendaHC[0,j] = self.Tsamp[j]
 					# Convert to J/K from microJ/K
 					self.AddendaHC[1,j] *= 1e-6
 
 				if "ThermCondWire=" in line: #and Tratio < AdiabaticCriterion):
-					self.ThermCondWire[1,j] = float(line.split(',')[1][len("ThermCondWire="):-2])
+					self.ThermCondWire[1,j] = float(line.strip('\n').split(',')[1][len("ThermCondWire="):])
 					self.ThermCondWire[0,j] = self.Tsamp[j]
 					#self.ThermCondWire.append( [ self.Tsamp[j],
 					#	float(line.split(',')[1][len("ThermCondWire="):-2]) ])
@@ -146,7 +146,7 @@ class LongHCPulse:
 				sys.stdout.write('\r %d%% ' % (100*j/numcurves))
 				sys.stdout.flush() # important for printing progress
 
-		print "\r 100%"
+		print("\r 100%")
 
 
 		# Smooth data
@@ -182,10 +182,10 @@ class LongHCPulse:
 		numberpulses = 0
 		for line in open(infile):
 			if "NBinsOn" in line:
-				pointson = int(line.split(",")[1][8:-2])
+				pointson = int(line.strip('\n').split(",")[1][8:])
 				numberpulses += 1
 			if "NBinsOff" in line:
-				pointsoff = int(line.split(",")[1][9:-2])
+				pointsoff = int(line.strip('\n').split(",")[1][9:])
 				if (pointson) > numberpoints:
 					numberpoints = pointson
 		return numberpoints, numberpulses
@@ -194,13 +194,13 @@ class LongHCPulse:
 	def _smooth(self, n):
 		'''Take moving average of heating and cooling pulses'''
 		self.smoothedData = np.zeros((len(self.rawdata[:,1,:,:]),3,len(self.rawdata[0,1,:,:]),2))
-		for i in xrange(len(self.rawdata[:,1,:,:])):
+		for i in range(len(self.rawdata[:,1,:,:])):
 			self.smoothedData[i,1,:,0] = self._movingaverage(self.rawdata[i,1,:,0],n)
 			self.smoothedData[i,1,:,1] = self._movingaverage(self.rawdata[i,1,:,1],n)
 			self.smoothedData[i,0,:,:] = self.rawdata[i,0,:,:]
 
 	def heatcapacity(self, smoothlevel=0, StaticOffset = 0.1):
-		print " - Computing Heat Capacity..."
+		print(" - Computing Heat Capacity...")
 		# Initialize arrays
 		lenSD = len(self.smoothedData)
 		self.HC = np.zeros((lenSD, len(self.smoothedData[0,0]),2))
@@ -214,10 +214,10 @@ class LongHCPulse:
 		SData = self.smoothedData #create convenient shorthand for smoothed data
 
 		# Loop through all curves and compute heat capacity
-		for i in xrange(lenSD):
+		for i in range(lenSD):
 			maxT = self.rawdata[i,1,-1,0]  #maximum temperature reached in heating pulse
-			for k in xrange(2):
-				for j in xrange(1,len(self.smoothedData[i,0,:,0])-2):
+			for k in range(2):
+				for j in range(1,len(self.smoothedData[i,0,:,0])-2):
 					
 					Ts = self.smoothedData[i,1,j,k]
 					Ph = self.rawdata[i,2,j,k]
@@ -300,7 +300,7 @@ class LongHCPulse:
 		self.HC *= self.molarmass/(self.sampmass*1e-3)
 		self.HC_uncertainty *= self.molarmass/(self.sampmass*1e-3) 
 
-		print "\r 100%"
+		print("\r 100%")
 
 	def shortPulseAverage(self):
 		"""Combine short pulse data points taken at the same temperatures. Threshold
@@ -476,7 +476,7 @@ class LongHCPulse:
 		count = int(datalines[start + 6].split('=')[1])
 		data = []
 		for i in range(start+7, start+7+count):
-			data.append([float(d) for d in datalines[i][:-2].split(',')])
+			data.append([float(d) for d in datalines[i].strip('\n').split(',')])
 		return data
 
 	def _movingaverage(self, datay, n):
@@ -484,7 +484,7 @@ class LongHCPulse:
 		if not (n & 0x1):
 			n+=1 	# Force the average number to be odd (to keep x values accurate)
 		newdatay = np.convolve(datay, np.ones((n,))/n, mode='same')
-		for i in xrange((n-1)/2):
+		for i in range(int((n-1)/2)):
 			newdatay[i] = np.average(datay[:(2*i)+1])
 			newdatay[-i-1] = np.average(datay[-(2*i)-1:])
 		return newdatay
@@ -494,7 +494,7 @@ class LongHCPulse:
 		data points under xSpacing distance."""
 		length = len(datay)
 		newy  = np.zeros(length)
-		for i in xrange(length):
+		for i in range(length):
 			if (i-smooth) < 0:
 				llim = 0
 				ulim = 2*i
@@ -576,7 +576,7 @@ class LongHCPulse:
 	def _tempToResis(self, Temp, Field):
 		"""Returns the thermometer resistance for a given temperature"""
 		## Interpolate temperatures
-		FieldArray = np.array(self.CalFields.values())
+		FieldArray = np.array(list(self.CalFields.values()))
 		IntrpTRes = np.zeros(len(FieldArray))
 		for i,f in enumerate(FieldArray):
 			IntrpTRes[i] = np.interp(Temp, self.AvgThRes['f'+str(i)][0], self.AvgThRes['f'+str(i)][1])
@@ -587,7 +587,7 @@ class LongHCPulse:
 		"""Used to compute temperature from thermometer resistance.
 		For long pulses, the PPMS calculates temperature incorrectly."""
 		## Interpolate temperatures
-		FieldArray = np.array(self.CalFields.values())
+		FieldArray = np.array(list(self.CalFields.values()))
 		IntrpTTemp = np.zeros(len(FieldArray))
 		for i,f in enumerate(FieldArray):
 			IntrpTTemp[i] = self.ResTempFunc['f'+str(i)](Resis)
@@ -600,7 +600,7 @@ class LongHCPulse:
 		return np.interp(temp, self.AddendaHC[0], self.AddendaHC[1])
 
 
-	def _combineTraces(self,smooth, FieldBinSize):
+	def _combineTraces(self,smooth, FieldBinSize=10):
 		"""Combines all heat capacity traces into a single line.
 		Used for lineplotCombine and Entropy calculations.
 		FieldBinSize in in Oe"""
@@ -608,7 +608,7 @@ class LongHCPulse:
 		Barray = np.sort(list(set(self.Bfield)))
 		self.CombB = Barray
 		ScaledBarray = np.zeros(len(Barray))
-		for ii in xrange(len(Barray)):
+		for ii in range(len(Barray)):
 			B = Barray[ii]
 			Bindex = np.where(self.Bfield==B)[0][0]
 			ScaledBarray[ii] = self.ScaledBfield[Bindex]
@@ -623,7 +623,7 @@ class LongHCPulse:
 		# Find where the short pulses are
 		LongPindices = np.where(self.ShortPulse==0)[0]
 		# loop through fields and combine traces
-		for jj in xrange(len(Barray)):
+		for jj in range(len(Barray)):
 			B = Barray[jj]
 
 			# find all indices where the magnetic field is of the specified value
@@ -900,7 +900,7 @@ class LongHCPulse:
 		colormap = plt.cm.hsv(np.arange(len(Barray))*1.0/len(Barray))* 0.75   #based on index
 		colors = dict(zip(Barray, colormap))
 
-		for jj in xrange(len(self.Bfield)):
+		for jj in range(len(self.Bfield)):
 			B = self.Bfield[jj]
 			for b in Barray:
 				if  B == b:
@@ -909,7 +909,7 @@ class LongHCPulse:
 		# Plot short pulse data 
 		if np.count_nonzero(self.ShortPulse) == 0: return
 		for jj, b in enumerate(Barray):
-			for i in xrange(len(self.avgSpB)):
+			for i in range(len(self.avgSpB)):
 				spB = self.avgSpB[i]
 				if spB == b:
 					axes.plot(self.avgSpT[i], self.avgSpHc[i],color=colors[spB], 
@@ -945,11 +945,11 @@ class LongHCPulse:
 		try:
 			self.CombHC
 		except AttributeError:
-			print " combining traces..."
+			print(" combining traces...")
 			self._combineTraces(smooth, FieldBinSize)
 
 		# plot the long pulse data
-		for jj in xrange(len(Barray)):
+		for jj in range(len(Barray)):
 			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
@@ -976,7 +976,7 @@ class LongHCPulse:
 		if plotShortPulse == True:
 			edgewidth = 0.8
 			for jj, b in enumerate(Barray):
-				for i in xrange(len(self.avgSpB)):
+				for i in range(len(self.avgSpB)):
 					spB = self.avgSpB[i]
 					if spB == b:
 						axes.plot(self.avgSpT[i], self.avgSpHc[i],color=colors[spB], 
@@ -1000,12 +1000,12 @@ class LongHCPulse:
 		try:
 			self.CombHC
 		except AttributeError:
-			print " combining traces..."
+			print(" combining traces...")
 			self._combineTraces(smooth)
 
 		self.Entropy = np.zeros_like(self.CombT)
 		# loop through magnetic fields
-		for jj in xrange(len(Barray)):
+		for jj in range(len(Barray)):
 			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
@@ -1046,11 +1046,11 @@ class LongHCPulse:
 		try:
 			self.Entropy
 		except AttributeError:
-			print " computing entropy..."
+			print(" computing entropy...")
 			self._computeEntropy(smooth)
 
 		# loop through magnetic fields
-		for jj in xrange(len(Barray)):
+		for jj in range(len(Barray)):
 			B = Barray[jj]
 			if B == 0: B=0.0   # get rid of negative sign which may be there
 			# find all indices where the magnetic field is of the specified value
@@ -1077,14 +1077,14 @@ class LongHCPulse:
 			Barray = np.sort(list(set(self.Bfield)))
 			# Create array of scaledB:
 			ScaledBarray = np.zeros(len(Barray))
-			for ii in xrange(len(Barray)):
+			for ii in range(len(Barray)):
 				B = Barray[ii]
 				Bindex = np.where(self.Bfield==B)[0][0]
 				ScaledBarray[ii] = np.around(self.ScaledBfield[Bindex],1)
 
 
 		Intensity = np.empty((len(Tarray)-1,len(Barray)))*np.nan
-		for ii in xrange(len(Barray)):
+		for ii in range(len(Barray)):
 			B = Barray[ii]
 			# find all indices where the magnetic field is of the specified value
 			Bindices = np.where(self.Bfield==B)[0]
@@ -1196,7 +1196,7 @@ class LongHCPulse:
 			"""Computes H + mu0*(D)*M(H)"""
 			return field + mu0*demagFac*np.interp(field, magvsfield[0], magvsfield[1])*10000 #mu_B / F.U.
 
-		print "Scaling demagnetization..."
+		print("Scaling demagnetization...")
 		self.ScaledBfield = np.zeros(len(self.Bfield))
 		self.ScaledavgSpB = np.zeros(len(self.avgSpB))
 
@@ -1275,6 +1275,47 @@ class LongHCPulse:
 					H2 = Hint
 			self.ScaledavgSpB[i] = Hint
 
+		try:
+			# Do the same thing, but for the combined traces (if they exist)
+			for i, H0 in enumerate(self.CombB):
+				if H0 == 0.0:
+					self.ScaledCombB[i] = 0.0
+					continue
+				# First, obtain two H values that bound the problem.
+				H1 = H0*1.0
+				mag1 = H0DM(H0) 
+				if mag1 < H0:
+					while mag1 < H0:
+						H1 += 0.1*H0
+						mag1 = H0DM(H1)
+					H2 = H1*1.0
+					H1 = H2 - 0.1*H0
+				elif mag1 > H0:
+					while mag1 > H0:
+						H1 -= 0.1*H0
+						mag1 = H0DM(H1)   #mu_B / F.U.
+					H2 = H1 + 0.1*H0
+				else:
+					H2 = H0
+				#print H0DM(H1)-H0, H0DM(H2)-H0
+
+				# Next, use the bisection method to determine the value
+				Hint = H1
+				Hintold = H0*1.0
+				while np.abs((Hint - Hintold)/H0) > 0.00001:
+					Hintold = Hint*1.0
+					Hint = 0.5*(H1+H2)
+					mag1 = H0DM(H1)
+					mag2 = H0DM(H2)
+					magbi = H0DM(Hint)
+					if magbi < H0:
+						H1 = Hint
+					else:
+						H2 = Hint
+				self.ScaledCombB[i] = Hint
+		except AttributeError:
+			pass
+
 
 	def savetrace(self, index, outfile):
 		heatarray = np.vstack((self.T[index][:,0],self.HC[index][:,0])).T
@@ -1293,7 +1334,7 @@ class LongHCPulse:
 		try:
 			self.CombHC
 		except AttributeError:
-			print " combining traces..."
+			print(" combining traces...")
 			self._combineTraces(1)
 
 		#so we don't save anything that hasn't been created
