@@ -16,6 +16,6 @@ A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/asche1/longhcpulse)
 [Note: MyBinder.org currently not working 6/30/17]
 
-## Updates in version 1.2 (June 30, 2017): 
-- Updated LongHCPulse.py to be compatible with Python 3.6 as well as Pythin 2.7
+### Updates in version 1.2 (June 30, 2017): 
+- Updated LongHCPulse.py to be compatible with Python 3.6 as well as Python 2.7
 - Fixed bug so that code runs properly on Windows
