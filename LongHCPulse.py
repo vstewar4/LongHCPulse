@@ -19,9 +19,10 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
-		print('**************** LongHCPulse v 1.2 ******************\n'+\
+		print('**************** LongHCPulse v 1.2.1 *****************\n'+\
 			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
 			'******************************************************')
+
 
 		if ((calfile == None and sampmass == None) and datafile.endswith('.pickle')):
 			with open(datafile, 'rb') as pf:
@@ -754,7 +755,7 @@ class LongHCPulse:
 				labl = str(abs(Bvalue)/10000)+' T'
 				#Blab = mlines.Line2D([], [], color=coolingcolor, label=labl)
 
-				self.Bflag.append(round(Bvalue,0))
+				self.Bflag.append(Bvalue)
 
 				if (coolingcolor is not None) and (heatingcolor is not None):
 					self.labels.append(mlines.Line2D([], [], color=coolingcolor, 
@@ -777,7 +778,7 @@ class LongHCPulse:
 
 			if (Bvalue not in self.shortpulseBflag and ShortHC != 0):
 				labl = str(Bvalue/10000)+' T'
-				self.shortpulseBflag.append(round(Bvalue,0))
+				self.shortpulseBflag.append(Bvalue)
 
 				if shortpulsecolor is not None:
 					self.shortpulselabels.append(mlines.Line2D([], [], color=shortpulsecolor, 
@@ -853,7 +854,7 @@ class LongHCPulse:
 				labl = str(abs(Bvalue)/10000)+' T'
 				#Blab = mlines.Line2D([], [], color=coolingcolor, label=labl)
 
-				self.Bflag.append(round(Bvalue,2))
+				self.Bflag.append(Bvalue)
 
 				if (coolingcolor is not None) and (heatingcolor is not None):
 					self.labels.append(mlines.Line2D([], [], color=coolingcolor, 
@@ -876,7 +877,7 @@ class LongHCPulse:
 
 			if (Bvalue not in self.shortpulseBflag and ShortHC != 0):
 				labl = str(Bvalue/10000)+' T'
-				self.shortpulseBflag.append(round(Bvalue,0))
+				self.shortpulseBflag.append(Bvalue)
 
 				if shortpulsecolor is not None:
 					self.shortpulselabels.append(mlines.Line2D([], [], color=shortpulsecolor, 
@@ -890,11 +891,9 @@ class LongHCPulse:
 
 
 
-	def lineplot(self,axes,Barray, markers = ['s','^','o','x'], **kwargs):
+	def lineplot(self,axes,Barray, plotHeatPulses=False, markers = ['s','^','o','x'], **kwargs):
 		""" Plots all the traces of long-pulse heat capacity and points of short-pulse
 		Currently uses 'gist_rainbow' colormap. If you don't like it, change it."""
-		self.labels = []
-		self.shortpulselabels = []
 		if (Barray == 'All' or Barray == 'all'):
 			Barray = np.sort(list(set(self.Bfield)))
 		else:
@@ -911,6 +910,10 @@ class LongHCPulse:
 			for b in Barray:
 				if  B == b:
 					self.plotHC(axes=axes,index=jj,coolingcolor=colors[B],Blabels=True, **kwargs)
+					if plotHeatPulses == True:
+						heatpulsecolor = colors[B]*0.6
+						heatpulsecolor[-1] = 0.9
+						self.plotHC(axes=axes,index=jj,heatingcolor=heatpulsecolor,Blabels=True, **kwargs)
 		
 		# Plot short pulse data 
 		if np.count_nonzero(self.ShortPulse) == 0: return
@@ -937,7 +940,6 @@ class LongHCPulse:
 		"""Combines all the heat capacity traces in a given field so that 
 		there is only one line plotted"""
 		self.labels = []
-		self.shortpulselabels = []
 
 		if Barray in ['All', 'all']:
 			Barray = np.sort(list(set(self.Bfield)))
@@ -1329,12 +1331,31 @@ class LongHCPulse:
 		np.savetxt(outfile+'_heating.txt',heatarray, fmt='%.9f', header = 'Temp(K)\tHC(J/[K mol-ion])', 
 			delimiter=', ')
 		coolarray = np.vstack((self.T[index][:,1],self.HC[index][:,1])).T
-		np.savetxt(outfile+'_cooling.txt',heatarray, fmt='%.9f', header = 'Temp(K)\tHC(J/[K mol-ion])', 
+		np.savetxt(outfile+'_cooling.txt',coolarray, fmt='%.9f', header = 'Temp(K)\tHC(J/[K mol-ion])', 
 			delimiter=', ')
 		rawarray = np.vstack((np.hstack((self.rawdata[index][0,:,0],self.rawdata[index][0,:,1])),
 			np.hstack((self.rawdata[index][1,:,0],self.rawdata[index][1,:,1])) ))
 		np.savetxt(outfile+'_raw-pulse.txt',rawarray.T, fmt='%.6f', header = 'time(s)\tTemp(K)', 
 			delimiter=', ')
+
+	def savetraces(self, outfile, Barray = 'all'):
+		if (Barray == 'All' or Barray == 'all'):
+			Barray = np.sort(list(set(self.Bfield)))
+		else:
+			Barray = np.array(Barray)
+
+		f = open(outfile, 'w')
+		f.write('# Heat Capacity data from LongHCPulse\n')
+		f.write('# Temp_heating (K),\t C_heating,\t Temp_cooling (K),\t C_cooling\n')
+		for jj in range(len(self.Bfield)):
+			B = self.Bfield[jj]
+			for b in Barray:
+				if  (B == b) and (self.ShortPulse[jj] == 0):
+					f.write('\n# B='+str(B)+'K, curve number = '+str(jj)+'\n')
+					for ii in range(len(self.T[jj][:,0])):
+						f.write(str(self.T[jj][ii,0]) +',\t'+ str(self.HC[jj][ii,0])+',\t'+
+							str(self.T[jj][ii,1]) +',\t'+ str(self.HC[jj][ii,1])+'\n')
+
 
 	def saveData(self, outfile):
 		#Combine traces into single line (if not done already)
@@ -1367,4 +1388,5 @@ class LongHCPulse:
 		# Save data with pickle
 		with open(outfile, 'w') as f:
 			pickle.dump(dataToSave, f)
+
 
