@@ -19,7 +19,7 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
-		print('**************** LongHCPulse v 1.2.1 *****************\n'+\
+		print('**************** LongHCPulse v 1.3 *******************\n'+\
 			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
 			'******************************************************')
 
@@ -622,6 +622,99 @@ class LongHCPulse:
 		if len(ScaledBarray) != len(Barray):
 			raise IndexError("ScaledBarray != Barray")
 
+
+		HCtoComb = []
+		TtoComb = []
+		self.CombHC = []
+		self.CombT = []
+
+		#plt.figure()
+
+		# Find where the short pulses are
+		LongPindices = np.where(self.ShortPulse==0)[0]
+		# loop through fields and combine traces
+		for jj in range(len(Barray)):
+			B = Barray[jj]
+
+			# find all indices where the magnetic field is of the specified value
+			Bindices = np.where(np.abs(self.Bfield - B)<FieldBinSize)[0]
+			# Take intersection of long pulses and field to eliminate short pulse data
+			Bindices = np.intersect1d(Bindices, LongPindices)
+			if len(Bindices) == 0:		
+				continue	# Skip if no data exists for this field
+
+			combinedHc = []
+			combinedT = []
+			# Average the points which overlap with another curve
+			for bi in Bindices:
+				nonnan = np.where(~np.isnan(np.array(self.HC[bi][:,1])))
+				overlapdataHC = self.HC[bi][nonnan,1].flatten()
+				for bj in Bindices[np.where(Bindices != bi)]:
+					overlapdataHC = np.vstack((overlapdataHC,
+						np.interp(self.T[bi][nonnan,1].flatten(), 
+						self.T[bj][:,1][::-1], self.HC[bj][:,1][::-1],
+						right = np.nan, left = np.nan)))
+					#print overlapdataHC
+
+				combinedHc.extend(np.nanmean(np.array(overlapdataHC), axis=0))
+				#plt.plot(self.T[bi][nonnan,1].flatten(), np.nanmean(overlapdataHC, axis=0))
+				combinedT.extend(self.T[bi][nonnan,1].flatten())
+
+			combinedHc = np.array(combinedHc)
+			combinedT = np.array(combinedT)
+
+			# Sort data by temperature
+			Tarrinds = combinedT.argsort()
+			combinedHc = combinedHc[Tarrinds]
+			combinedT = combinedT[Tarrinds]
+
+			AvgCombHc= []
+			AvgCombT = []
+			# Combine close repeated values
+			threshold = 0.002 #(K)
+			Tprev = combinedT[0]
+			HCprev = combinedHc[0]
+			i=1
+			while i < len(combinedT):
+				Tem = combinedT[i]
+				HCap = combinedHc[i]
+				if np.abs(Tem-Tprev) <= threshold:
+					AvgCombT.append(0.5*(Tem + Tprev))
+					AvgCombHc.append(0.5*(HCap + HCprev))
+					HCprev = combinedHc[i]
+					Tprev = combinedT[i]
+					i+=1
+				else:
+					AvgCombT.append(Tprev)
+					AvgCombHc.append(HCprev)
+					HCprev = combinedHc[i]
+					Tprev = combinedT[i]
+				i+=1
+
+			# Smooth data
+			AvgCombHc = self._movingaverage_xspacing(AvgCombT,AvgCombHc, smooth, 0.01)
+			# Append to object list
+			self.CombHC.append(AvgCombHc)
+			self.CombT.append(AvgCombT)
+
+
+	def _combineTracesOld(self,smooth, FieldBinSize=10):
+		"""Combines all heat capacity traces into a single line.
+		Used for lineplotCombine and Entropy calculations.
+		FieldBinSize in in Oe"""
+
+		Barray = np.sort(list(set(self.Bfield)))
+		self.CombB = Barray
+		ScaledBarray = np.zeros(len(Barray))
+		for ii in range(len(Barray)):
+			B = Barray[ii]
+			Bindex = np.where(self.Bfield==B)[0][0]
+			ScaledBarray[ii] = self.ScaledBfield[Bindex]
+		#ScaledBarray = np.sort(list(set(np.around(self.ScaledBfield,1))))
+		self.ScaledCombB = ScaledBarray
+		if len(ScaledBarray) != len(Barray):
+			raise IndexError("ScaledBarray != Barray")
+
 		self.CombHC = []
 		self.CombT = []
 
@@ -658,7 +751,7 @@ class LongHCPulse:
 			AvgCombHc= []
 			AvgCombT = []
 			# Combine close repeated values
-			threshold = 0.003 #(K)
+			threshold = 0.005 #(K)
 			Tprev = combinedT[0]
 			HCprev = combinedHc[0]
 			i=1
@@ -683,8 +776,6 @@ class LongHCPulse:
 			# Append to object list
 			self.CombHC.append(AvgCombHc)
 			self.CombT.append(AvgCombT)
-
-
 
 
 
@@ -1388,5 +1479,4 @@ class LongHCPulse:
 		# Save data with pickle
 		with open(outfile, 'w') as f:
 			pickle.dump(dataToSave, f)
-
 
