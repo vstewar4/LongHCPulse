@@ -1,5 +1,5 @@
 # LongHCPulse
-## V. 1.2.1
+## V. 1.3
 
 Code for processing long pulse heat capacity data taken on a Quantum Design PPMS.
 Please cite https://arxiv.org/pdf/1705.07129.pdf
@@ -16,6 +16,9 @@ This is the file you should import into your python scripts.
 A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/asche1/longhcpulse)
  [Note: MyBinder.org currently not working 6/30/17]
+
+### Updates in version 1.3 (October 4, 2017)
+- Re-wrote the combineTraces function so that it averages all overlapping regions of data, instead of concatenating, sorting, and then applying a moving average. The result is fewer jagged discontinuities when combining multiple heating and cooling pulses.
 
 ### Updates in version 1.2.1 (August 28, 2017)
 - Added option in "lineplot" command to plot heating pulse data as well (using "plotHeatPulses=True")
