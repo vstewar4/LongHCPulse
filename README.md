@@ -9,7 +9,7 @@ This is the file you should import into your python scripts.
 
 "Minimal_Working_Example.ipynb" is an ipython notebook giving a simple introduction to the code and how to use the plotting functions.
 
-"YbTiO_HeatCapacity.ipynb" is an ipython notebook showing how LongHCPulse was used in a more complicated way to process heat capacity data in https://arxiv.org/pdf/1703.06904.pdf.
+"YbTiO_HeatCapacity.ipynb" is an ipython notebook showing how LongHCPulse was used in a more complicated way to process heat capacity data in DOI:10.1103/PhysRevLett.119.127201.
 
 "DRPuck27.cal", "Yb2Ti2O7_longpulse.raw", and "YbTiO_MvsB_100mK.txt" are all data files used in YbtiO_HeatCapacity.ipynb.
 
