@@ -17,6 +17,10 @@ A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/asche1/longhcpulse)
  [Note: MyBinder.org currently not working 6/30/17]
 
+### Updates in version 1.3.1 (October 16, 2017)
+- Updated meshgrid so that heat pulses can be included in the binning (with the command useHeatPulses=True).
+- Updated lineplotCombine so that heat pulses can be included in the final data (useHeatPulses=True), or so that heat pulses can be used instead of cooling pulses (onlyHeatPulses=True).
+
 ### Updates in version 1.3 (October 4, 2017)
 - Re-wrote the combineTraces function so that it averages all overlapping regions of data, instead of concatenating, sorting, and then applying a moving average. The result is fewer jagged discontinuities when combining multiple heating and cooling pulses.
 
