@@ -19,7 +19,7 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
-		print('**************** LongHCPulse v 1.3 *******************\n'+\
+		print('**************** LongHCPulse v 1.3.1 *****************\n'+\
 			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
 			'******************************************************')
 
@@ -605,10 +605,10 @@ class LongHCPulse:
 		return np.interp(temp, self.AddendaHC[0], self.AddendaHC[1])
 
 
-	def _combineTraces(self,smooth, FieldBinSize=10):
+	def _combineTraces(self,smooth, FieldBinSize=10, useHeatPulses=False, onlyHeatPulses=False):
 		"""Combines all heat capacity traces into a single line.
 		Used for lineplotCombine and Entropy calculations.
-		FieldBinSize in in Oe"""
+		FieldBinSize in in Oe, default setting is to only use cooling pulses."""
 
 		Barray = np.sort(list(set(self.Bfield)))
 		self.CombB = Barray
@@ -647,18 +647,67 @@ class LongHCPulse:
 			combinedT = []
 			# Average the points which overlap with another curve
 			for bi in Bindices:
-				nonnan = np.where(~np.isnan(np.array(self.HC[bi][:,1])))
-				overlapdataHC = self.HC[bi][nonnan,1].flatten()
-				for bj in Bindices[np.where(Bindices != bi)]:
-					overlapdataHC = np.vstack((overlapdataHC,
-						np.interp(self.T[bi][nonnan,1].flatten(), 
-						self.T[bj][:,1][::-1], self.HC[bj][:,1][::-1],
-						right = np.nan, left = np.nan)))
-					#print overlapdataHC
+				if onlyHeatPulses: # Combine all heating pulses into a single trace
+					nonnan = np.where(~np.isnan(np.array(self.HC[bi][:,0])))
+					overlapdataHC = self.HC[bi][nonnan,0].flatten()
+					for bj in Bindices[np.where(Bindices != bi)]:
+						overlapdataHC = np.vstack((overlapdataHC,
+							np.interp(self.T[bi][nonnan,0].flatten(), 
+							self.T[bj][:,0], self.HC[bj][:,0],
+							right = np.nan, left = np.nan)))
+					combinedHc.extend(np.nanmean(np.array(overlapdataHC), axis=0))
+					combinedT.extend(self.T[bi][nonnan,0].flatten())
 
-				combinedHc.extend(np.nanmean(np.array(overlapdataHC), axis=0))
-				#plt.plot(self.T[bi][nonnan,1].flatten(), np.nanmean(overlapdataHC, axis=0))
-				combinedT.extend(self.T[bi][nonnan,1].flatten())
+				else:
+					#Combine all cooling pulses into a single trace
+					nonnan = np.where(~np.isnan(np.array(self.HC[bi][:,1])))
+					overlapdataHC = self.HC[bi][nonnan,1].flatten()
+					for bj in Bindices[np.where(Bindices != bi)]:
+						overlapdataHC = np.vstack((overlapdataHC,
+							np.interp(self.T[bi][nonnan,1].flatten(), 
+							self.T[bj][:,1][::-1], self.HC[bj][:,1][::-1],
+							right = np.nan, left = np.nan)))
+
+						if useHeatPulses: # include heating pulses
+							overlapdataHC = np.vstack((overlapdataHC,
+								np.interp(self.T[bi][nonnan,1].flatten(), 
+								self.T[bj][:,0], self.HC[bj][:,0],
+								right = np.nan, left = np.nan)))
+
+					if useHeatPulses:
+						# Compute overlap with same index heating pulse
+						overlapdataHC = np.vstack((overlapdataHC,
+							np.interp(self.T[bi][nonnan,1].flatten(), 
+							self.T[bi][:,0], self.HC[bi][:,0],
+							right = np.nan, left = np.nan)))
+
+					# Concatenate data to array, to be sorted later
+					combinedHc.extend(np.nanmean(np.array(overlapdataHC), axis=0))
+					combinedT.extend(self.T[bi][nonnan,1].flatten())
+
+					if useHeatPulses:
+						# Compute overlap with same index heating pulse
+						overlapdataHC = np.vstack((overlapdataHC,
+							np.interp(self.T[bi][nonnan,1].flatten(), 
+							self.T[bi][:,0], self.HC[bi][:,0],
+							right = np.nan, left = np.nan)))
+						# Now repeat, but computing overlap with heating pulse
+						nonnan = np.where(~np.isnan(np.array(self.HC[bi][:,0])))
+						overlapdataHC = self.HC[bi][nonnan,0].flatten()
+
+						for bj in Bindices[np.where(Bindices != bi)]:
+							overlapdataHC = np.vstack((overlapdataHC,
+								np.interp(self.T[bi][nonnan,0].flatten(), 
+								self.T[bj][:,1][::-1], self.HC[bj][:,1][::-1],
+								right = np.nan, left = np.nan)))
+							overlapdataHC = np.vstack((overlapdataHC,
+								np.interp(self.T[bi][nonnan,0].flatten(), 
+								self.T[bj][:,0], self.HC[bj][:,0],
+								right = np.nan, left = np.nan)))
+
+						# Concatenate data to array, to be sorted later
+						combinedHc.extend(np.nanmean(np.array(overlapdataHC), axis=0))
+						combinedT.extend(self.T[bi][nonnan,0].flatten())
 
 			combinedHc = np.array(combinedHc)
 			combinedT = np.array(combinedT)
@@ -1027,7 +1076,8 @@ class LongHCPulse:
 
 
 	def lineplotCombine(self,axes,Barray,smooth, demag=True, plotShortPulse=True, 
-		markers = ['s','^','o','x'], FieldBinSize = 10, **kwargs):
+		markers = ['s','^','o','x'], FieldBinSize = 10, onlyHeatPulses=False,
+		useHeatPulses=False, **kwargs):
 		"""Combines all the heat capacity traces in a given field so that 
 		there is only one line plotted"""
 		self.labels = []
@@ -1041,12 +1091,8 @@ class LongHCPulse:
 		colormap = plt.cm.hsv(np.arange(len(Barray))*1.0/len(Barray))* 0.75   #based on index
 		colors = dict(zip(Barray, colormap))
 
-		# Combine traces into single line (if not done already)
-		try:
-			self.CombHC
-		except AttributeError:
-			print(" combining traces...")
-			self._combineTraces(smooth, FieldBinSize)
+		# Combine traces into single line
+		self._combineTraces(smooth, FieldBinSize, useHeatPulses, onlyHeatPulses)
 
 		# plot the long pulse data
 		for jj in range(len(Barray)):
@@ -1168,7 +1214,7 @@ class LongHCPulse:
 			
 
 
-	def meshgrid(self,Tarray,Barray):
+	def meshgrid(self,Tarray,Barray, useHeatPulses=False):
 		"""Tarray is the array of x values to be binned to
 		Barray is the array of magnetic fields to loop through
 		Set Barray to 'all' if you want to plot all the fields."""
@@ -1191,14 +1237,18 @@ class LongHCPulse:
 			if len(Bindices) == 0:		
 				continue	# Skip if no data exists for this field
 			# Concatenate data into single array
-
-			binnedhc = self.binAndInterpolate(Tarray, self.T[Bindices[0]][:,1], self.HC[Bindices[0]][:,1])
+			binnedhc = self.binAndInterpolate(Tarray, self.T[Bindices[0]][:,1], 
+					self.HC[Bindices[0]][:,1])
 
 			for bb in Bindices:
 				if self.ShortPulse[bb] != 0:
 					continue	# skip this value if it is a short pulse
 				newbinnd = self.binAndInterpolate(Tarray, self.T[bb][:,1] , self.HC[bb][:,1])
 				binnedhc = np.vstack((binnedhc,newbinnd))
+
+				if useHeatPulses:
+					newbinnd = self.binAndInterpolate(Tarray, self.T[bb][:,0] , self.HC[bb][:,0])
+					binnedhc = np.vstack((binnedhc,newbinnd))
 
 			# Take average along given axis
 			AvgBinnedHc = np.nanmean(binnedhc, axis=0)
@@ -1479,4 +1529,5 @@ class LongHCPulse:
 		# Save data with pickle
 		with open(outfile, 'w') as f:
 			pickle.dump(dataToSave, f)
+
 
