@@ -1,5 +1,5 @@
 # LongHCPulse
-## V. 1.3.1
+## V. 1.3.2
 
 Code for processing long pulse heat capacity data taken on a Quantum Design PPMS.
 Please cite https://arxiv.org/pdf/1705.07129.pdf
@@ -16,6 +16,9 @@ This is the file you should import into your python scripts.
 A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 [![Binder](http://mybinder.org/badge.svg)](http://mybinder.org:/repo/asche1/longhcpulse)
  [Note: MyBinder.org currently not working 6/30/17]
+
+### Updates in version 1.3.2 (June 7, 2018)
+- Fixed bug in savetraces function so that python closes the file properly.
 
 ### Updates in version 1.3.1 (October 16, 2017)
 - Updated meshgrid so that heat pulses can be included in the binning (with the command useHeatPulses=True).
