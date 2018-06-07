@@ -19,6 +19,7 @@ A runnable version of YbTiO_HeatCapacity.ipynb can be found at:
 
 ### Updates in version 1.3.2 (June 7, 2018)
 - Fixed bug in savetraces function so that python closes the file properly.
+- Added NonPPMS version of LongHCPulse which can process data without a calibration file, so that LongHCPulse can be used with data not taken on a Quantum Design PPMS.
 
 ### Updates in version 1.3.1 (October 16, 2017)
 - Updated meshgrid so that heat pulses can be included in the binning (with the command useHeatPulses=True).
