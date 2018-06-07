@@ -19,7 +19,7 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
-		print('**************** LongHCPulse v 1.3.1 *****************\n'+\
+		print('**************** LongHCPulse v 1.3.2 *****************\n'+\
 			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
 			'******************************************************')
 
@@ -1496,6 +1496,7 @@ class LongHCPulse:
 					for ii in range(len(self.T[jj][:,0])):
 						f.write(str(self.T[jj][ii,0]) +',\t'+ str(self.HC[jj][ii,0])+',\t'+
 							str(self.T[jj][ii,1]) +',\t'+ str(self.HC[jj][ii,1])+'\n')
+		f.close()
 
 
 	def saveData(self, outfile):
@@ -1529,5 +1530,4 @@ class LongHCPulse:
 		# Save data with pickle
 		with open(outfile, 'w') as f:
 			pickle.dump(dataToSave, f)
-
 
