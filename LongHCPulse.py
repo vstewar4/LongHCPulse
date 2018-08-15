@@ -20,7 +20,7 @@ class LongHCPulse:
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
 		print('**************** LongHCPulse v 1.3.2 *****************\n'+\
-			' please cite   https://arxiv.org/pdf/1705.07129.pdf\n'+\
+			' please cite   https://doi.org/10.1007/s10909-018-2042-9\n'+\
 			'******************************************************')
 
 
