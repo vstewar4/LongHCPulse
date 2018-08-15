@@ -2,7 +2,7 @@
 ## V. 1.3.2
 
 Code for processing long pulse heat capacity data taken on a Quantum Design PPMS.
-Please cite https://arxiv.org/pdf/1705.07129.pdf
+Please cite https://doi.org/10.1007/s10909-018-2042-9
 
 The main file here is "PPMS_LongPulse.py". This contains the class LongHCPulse, which computes and plots heat capacity.
 This is the file you should import into your python scripts.
