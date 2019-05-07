@@ -19,7 +19,7 @@ class LongHCPulse:
 	def __init__(self,datafile,calfile=None,sampmass=None,molarmass=1,scaleshortpulse=1,
 				AdiabaticCriterion=0.1):
 		# If only rawfile is specified, it assumes that you're feeding it a pickle object
-		print('**************** LongHCPulse v 1.3.2 *****************\n'+\
+		print('**************** LongHCPulse v 1.3.3 *****************\n'+\
 			' please cite   https://doi.org/10.1007/s10909-018-2042-9\n'+\
 			'******************************************************')
 
@@ -481,7 +481,7 @@ class LongHCPulse:
 		count = int(datalines[start + 6].split('=')[1])
 		data = []
 		for i in range(start+7, start+7+count):
-			data.append([float(d) for d in datalines[i].strip('\n').split(',')])
+			data.append([float(d) for d in datalines[i].strip('\n').strip(',').split(',')])
 		return data
 
 	def _movingaverage(self, datay, n):
