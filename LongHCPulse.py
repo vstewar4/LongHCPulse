@@ -65,7 +65,7 @@ class LongHCPulse:
 		self.Bfield = np.empty((numcurves))*np.nan	# Array for holding magnetic field
 		self.ShortPulse = np.zeros((numcurves))	# gives HC if pulse is a short pulse, zero if long pulse
 		self.AddendaHC = np.zeros((2,numcurves))	# Subtracted from HC at the very end.
-		
+		self.avgThermCondWire = np.zeros((numcurves))
 		self.ThermCondWire = np.zeros((2,numcurves))	# Used to compare 
 		##self.ThermCondWire = []
 
@@ -257,6 +257,7 @@ class LongHCPulse:
 					# We approximate deltaKw from the spread of any short pulse data that exists.
 					try: deltaKw = np.interp(Ts, self.avgThermCondWire[0], self.avgThermCondWire[2])
 					except AttributeError: deltaKw = 4e-10   # <-- Dominant term
+					except ValueError: deltaKw = 4e-10
 					deltaS = StaticOffset*0.1
 					#######################################
 					self.HC_uncertainty[i,j,k] = 1/dTdt * np.sqrt(
@@ -1530,4 +1531,28 @@ class LongHCPulse:
 		# Save data with pickle
 		with open(outfile, 'w') as f:
 			pickle.dump(dataToSave, f)
-
+			
+ def saveDataText(self, outfile): #saves only temperature & heat capacity values (combined traces)
+        
+        #Combine traces into single line (if not done already)
+        try:
+            self.CombHC
+        except AttributeError:
+            print(" combining traces...")
+            self._combineTraces(1)
+        
+        CombT = self.CombT[0]
+        CombHC = self.CombHC[0]
+        
+        members = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
+        membersToBeSaved = ['CombHC', 'CombT']
+        membersToBeSaved = list(set(members).intersection(membersToBeSaved))  
+        
+        dataToSave = list(zip(CombT,CombHC))
+        
+        with open(outfile, 'w') as f:
+            for i in dataToSave:
+                line = str(i) + '\n'
+                line = line.replace("(","")
+                line = line.replace(")","")
+                f.write(line)
